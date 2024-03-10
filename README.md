@@ -1,3 +1,15 @@
+# [WIP] Local GUI version
+Basic GUI Implimentation based on [BillFSmith's](https://github.com/BillFSmith/) [TilingZoeDepth](https://github.com/BillFSmith/TilingZoeDepth).
+
+## Prequisites
+CUDA-capable system (Nvidia GPU)
+Python 10.6
+
+## Setup
+1. run `pip3 -r requirements.txt` first to download the packages.
+2. On first start, run `python Tiled_ZoeDepth.py` to download the ZoeDepth repo.
+
+# Original Description
 # Tiling ZoeDepth outputs for higher resolution
 v3 has a more reliable upload system for larger files. Can take multiple files at once:
 

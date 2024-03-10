@@ -164,3 +164,4 @@ tiled_*.png
 zoe_depth_map_16bit_low.png
 test/
 im0 *.jpg
+torch/
