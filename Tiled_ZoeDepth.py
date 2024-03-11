@@ -234,27 +234,31 @@ def Tiled_ZoeDepth_process(file_path):
     # Load model
     if ZD_N_var.get():
         if os.path.exists('.\\torch\\cache\\checkpoints\\ZoeD_M12_N.pt'):
-            update_pbar('Loading ZoeD_N Model... |', 10)
+            update_pbar('Loading ZoeD_N Model... |', 1)
         else:
             update_pbar('Downloading ZoeD_N Model... ', 0, infLoad=True)
             
         zoe = torch.hub.load(".\\ZoeDepth", "ZoeD_N", source="local", pretrained=True, trust_repo=True)
     elif ZD_K_var.get():
         if os.path.exists('.\\torch\\cache\\checkpoints\\ZoeD_M12_K.pt'):
-            update_pbar('Loading ZoeD_N Model... |', 10)
+            update_pbar('Loading ZoeD_K Model... |', 1)
         else:
-            update_pbar('Downloading ZoeD_N Model... ', 0, infLoad=True)
+            update_pbar('Downloading ZoeD_K Model... ', 0, infLoad=True)
             
         zoe = torch.hub.load(".\\ZoeDepth", "ZoeD_K", source="local", pretrained=True, trust_repo=True)
     elif ZD_NK_var.get():
         if os.path.exists('.\\torch\\cache\\checkpoints\\ZoeD_M12_NK.pt'):
-            update_pbar('Loading ZoeD_N Model... |', 10)
+            update_pbar('Loading ZoeD_NK Model... |', 1)
         else:
-            update_pbar('Downloading ZoeD_N Model... ', 0, infLoad=True)
+            update_pbar('Downloading ZoeD_NK Model... ', 0, infLoad=True)
             
         zoe = torch.hub.load(".\\ZoeDepth", "ZoeD_NK", source="local", pretrained=True, trust_repo=True)
+
     # Load CUDA dependency
-    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    cuda_True = update_pbar('Cuda is available! Starting process... ', 10, infLoad=True) 
+    cude_False = update_pbar('Cuda not available! Using CPU instead. Starting process... ', 10, infLoad=True)
+    
+    DEVICE = "cuda" if torch.cuda.is_available() and cuda_True else "cpu" and cude_False
     dependencies['zoe'] = zoe.to(DEVICE)
 
     # Load and process the image/s
@@ -265,7 +269,6 @@ def Tiled_ZoeDepth_process(file_path):
         os.makedirs('.\\temp', exist_ok=True)
         
         image_file = os.path.basename(file)
-        update_pbar(f'processing {image_file}...', 20, filenum, len(file_path))
         
         img = Image.open(file)
 
@@ -273,7 +276,8 @@ def Tiled_ZoeDepth_process(file_path):
         low_res_depth = dependencies['zoe'].infer_pil(img)
         low_res_scaled_depth = 2**16 - (low_res_depth - np.min(low_res_depth)) * 2**16 / (np.max(low_res_depth) - np.min(low_res_depth))
         
-        update_pbar(f'{image_file}: Generating low-res depth map\n', 30, filenum, len(file_path))
+        update_pbar(f'{image_file}: Generating low-res depth map\n', 20, filenum, len(file_path))
+        
         low_res_depth_map_image = Image.fromarray((0.999 * low_res_scaled_depth).astype("uint16"))
         low_res_depth_map_image.save('temp\\zoe_depth_map_16bit_low.png')
         
@@ -294,7 +298,7 @@ def Tiled_ZoeDepth_process(file_path):
         # Generate filters
 
         # store filters in lists
-        pbar_value = 40
+        pbar_value = 30
         update_pbar(f'{image_file}: Generating filters\n', pbar_value, filenum, len(file_path))
         
         im = np.asarray(img)
@@ -319,7 +323,7 @@ def Tiled_ZoeDepth_process(file_path):
             filter_dict['filter'] = np.zeros((M, N))
 
             for i in range(M):
-                pbar_value += .005
+                pbar_value += .008
                 update_pbar(f'{image_file}: Generating filters\n', pbar_value, filenum, len(file_path))
                 for j in range(N):
                     
@@ -382,8 +386,6 @@ def Tiled_ZoeDepth_process(file_path):
 
         # Compile tiles and create depth maps
         pbar_value = 60
-
-
         update_pbar(f'{image_file}: compiling tiles & creating depth maps\n', pbar_value, filenum, len(file_path))
         
         compiled_tiles_list = []
