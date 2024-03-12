@@ -33,7 +33,7 @@ VSVersionInfo(
         StringStruct('FileDescription', 'BillFSmith\'s Tiled ZoeDepth on GUI'),
         StringStruct('FileVersion', '3.0.0'),
         StringStruct('InternalName', 'Tiled_ZoeDepth'),
-        StringStruct('LegalCopyright', '© 2024 N8VENTURES. All rights reserved.'),
+        StringStruct('LegalCopyright', 'Copyright © 2024 John Nathaniel Calvara. Licensed under the MIT License.'),
         StringStruct('OriginalFilename', 'Tiled_ZoeDepth.exe'),
         StringStruct('ProductName', 'BillFSmith\'s Tiled ZoeDepth'),
         StringStruct('ProductVersion', '3.0.0')])
