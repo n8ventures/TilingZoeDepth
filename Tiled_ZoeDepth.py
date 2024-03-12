@@ -21,11 +21,12 @@ from idlelib.tooltip import Hovertip
 import atexit
 
 contents_dir = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
+torch_cache = '.\\torch\\cache'
 
-if not os.path.exists('.\\torch\\cache'):
-    os.makedirs('.\\torch\\cache', exist_ok=True)
+if not os.path.exists(torch_cache):
+    os.makedirs(torch_cache, exist_ok=True)
 
-torch.hub.set_dir('.\\torch\\cache')
+torch.hub.set_dir(torch_cache)
 
 import locale
 def getpreferredencoding(do_setlocale = True):
@@ -54,11 +55,12 @@ splash_geo_x = 490
 splash_geo_y = 490
 center_window(splash_screen, splash_geo_x, splash_geo_y)
 
-splash_img = 'ZoeDepth2.png'
+icon = 'ZoeDepth2.ico'
+splash_img = './/assets//ZoeDepth2.png'
 if hasattr(sys, '_MEIPASS'):
+    splash_img = './/splash//ZoeDepth2.png'
     splash_img = os.path.join(sys._MEIPASS, splash_img)
-else:
-    splash_img = './/assets//ZoeDepth2.png'
+    icon = os.path.join(contents_dir, icon)
 
 splash_img = ImageTk.PhotoImage(file=splash_img)
 splash_label = tk.Label(splash_screen, image=splash_img, bg='black')
@@ -97,9 +99,7 @@ def files_selected(file_path):
     else:
         print('No image File dropped.')
 
-icon = 'ZoeDepth2.ico'
-if hasattr(sys, '_MEIPASS'):
-    icon = os.path.join(contents_dir, icon)
+
 def main():
     global ZD_N_var, ZD_K_var, ZD_NK_var, ZD_N_Check, ZD_K_Check, ZD_NK_Check
     global canvas, drop_label, settings_frame
