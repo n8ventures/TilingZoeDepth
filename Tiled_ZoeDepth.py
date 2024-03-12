@@ -3,7 +3,7 @@
 import numpy as np
 import cv2
 import torch
-from PIL import Image
+from PIL import Image, ImageTk
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from scipy.ndimage import gaussian_filter
@@ -18,6 +18,7 @@ import threading
 import time
 import re
 from idlelib.tooltip import Hovertip
+import atexit
 
 contents_dir = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
 
@@ -26,19 +27,12 @@ if not os.path.exists('.\\torch\\cache'):
 
 torch.hub.set_dir('.\\torch\\cache')
 
-if not os.path.exists('.\\ZoeDepth'):
-    Repo.clone_from('https://github.com/isl-org/ZoeDepth.git', 'ZoeDepth')
-    
-from ZoeDepth.zoedepth.utils.misc import get_image_from_url, colorize
-
 import locale
 def getpreferredencoding(do_setlocale = True):
     return "UTF-8"
 locale.getpreferredencoding = getpreferredencoding
 
 dependencies = {}
-
-root = TkinterDnD.Tk()
 
 def center_window(window, width, height):
     screen_width = window.winfo_screenwidth()
@@ -48,44 +42,30 @@ def center_window(window, width, height):
     x_position = (screen_width - window_width) // 2
     y_position = (screen_height - window_height) // 2  
     window.geometry(f"{window_width}x{window_height}+{x_position}+{y_position-35}")
+    
+root = TkinterDnD.Tk()
+root.withdraw()
+
+splash_screen = tk.Toplevel(root)
+splash_screen.overrideredirect(1)
+splash_screen.attributes('-topmost', True)  # Keep the window on top
+splash_screen.attributes("-transparentcolor", "black")
+splash_geo_x = 490
+splash_geo_y = 490
+center_window(splash_screen, splash_geo_x, splash_geo_y)
+
+splash_img = 'ZoeDepth2.png'
+if hasattr(sys, '_MEIPASS'):
+    splash_img = os.path.join(sys._MEIPASS, splash_img)
+else:
+    splash_img = './/assets//ZoeDepth2.png'
+
+splash_img = ImageTk.PhotoImage(file=splash_img)
+splash_label = tk.Label(splash_screen, image=splash_img, bg='black')
+splash_label.pack()
 
 def make_non_resizable(window):
     window.resizable(False, False)
-
-def on_configure(event):
-    canvas.configure(scrollregion=canvas.bbox("all"))
-
-def drag_enter(event):
-    drop_label.config(bg="lightgray")
-    label.config(bg="lightgray")
-
-def drag_leave(event):
-    drop_label.config(bg="white")
-    label.config (bg="white")
-    
-def on_drop(event):
-    global file_path
-    drop_label.config(bg="white")
-    label.config (bg="white")
-    
-    file_path = re.findall(r'\{.*?\}|\S+', event.data)
-    file_path = [re.sub(r'[{}]', '', file) for file in file_path]
-
-    files_selected(file_path)
-
-def img_preview(image):
-    img = Image.open(image)
-    aspect_ratio = img.width / img.height
-    
-    if img.width > img.height:  # Landscape
-        target_width = min(img.width, 450)
-        target_height = int(target_width / aspect_ratio)
-    else:  # Portrait or square
-        target_height = min(img.height, 300)
-        target_width = int(target_height * aspect_ratio)
-    
-    img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
-    return img
 
 def choose_file(event):
     global file_path
@@ -101,6 +81,8 @@ image_ext = [
 '.tga','.tiff','.tif','.webp','.xbm','.xpm'
 ]
 
+image_ext_upper = [ext.upper() for ext in image_ext]
+
 def is_image_file(file_path):
     _, file_extension = os.path.splitext(file_path)
     return file_extension.lower() in image_ext
@@ -115,70 +97,96 @@ def files_selected(file_path):
     else:
         print('No image File dropped.')
 
-image_ext_upper = [ext.upper() for ext in image_ext]
-
 icon = 'ZoeDepth2.ico'
-
 if hasattr(sys, '_MEIPASS'):
     icon = os.path.join(contents_dir, icon)
+def main():
+    global ZD_N_var, ZD_K_var, ZD_NK_var, ZD_N_Check, ZD_K_Check, ZD_NK_Check
+    global canvas, drop_label, settings_frame
+    global drag_enter, on_drop, drag_leave
+    def on_configure(event):
+        canvas.configure(scrollregion=canvas.bbox("all"))
 
-geo_width= 900
-center_window(root, geo_width, 950)
-root.iconbitmap(icon)
-make_non_resizable(root)
-root.title('Tiled ZoeDepth')
+    def drag_enter(event):
+        drop_label.config(bg="lightgray")
+        label.config(bg="lightgray")
 
-canvas = tk.Canvas(root, bd=2, relief="ridge")
-canvas.pack(expand=True, fill="both")
-canvas.pack_propagate(0)
+    def drag_leave(event):
+        drop_label.config(bg="white")
+        label.config (bg="white")
+        
+    def on_drop(event):
+        global file_path
+        drop_label.config(bg="white")
+        label.config (bg="white")
+        
+        file_path = re.findall(r'\{.*?\}|\S+', event.data)
+        file_path = [re.sub(r'[{}]', '', file) for file in file_path]
 
-# Create a Label for the drop area
-drop_label = tk.Label(canvas, text="Drag and drop image files Here\nor\nClick this area to select file\s", padx=20, pady=20, bg="white")
-drop_label.pack(expand=True, fill="both")
+        files_selected(file_path)
+        
+    geo_width= 900
+    center_window(root, geo_width, 950)
+    root.iconbitmap(icon)
+    make_non_resizable(root)
+    root.title('Tiled ZoeDepth')
 
-# Bind the drop event to the on_drop function
-drop_label.bind("<Enter>", drag_enter)
-drop_label.bind("<Leave>", drag_leave)
-drop_label.bind('<Button-1>', choose_file)
-drop_label.drop_target_register(DND_FILES)
-drop_label.dnd_bind('<<Drop>>', on_drop)
-canvas.bind("<Enter>", drag_enter)
-canvas.bind("<Leave>", drag_leave)
-canvas.bind('<Button-1>', choose_file)
-canvas.dnd_bind('<<Drop>>', on_drop)
-canvas.drop_target_register(DND_FILES)
+    canvas = tk.Canvas(root, bd=2, relief="ridge")
+    canvas.pack(expand=True, fill="both")
+    canvas.pack_propagate(0)
 
-label = tk.Label(canvas, bd=0, bg="white")
+    # Create a Label for the drop area
+    drop_label = tk.Label(canvas, text="Drag and drop image files Here\nor\nClick this area to select file\s", padx=20, pady=20, bg="white")
+    drop_label.pack(expand=True, fill="both")
 
-settings_frame = tk.Frame(root)
-settings_frame.pack(side=tk.BOTTOM, pady=10)
+    # Bind the drop event to the on_drop function
+    drop_label.bind("<Enter>", drag_enter)
+    drop_label.bind("<Leave>", drag_leave)
+    drop_label.bind('<Button-1>', choose_file)
+    drop_label.drop_target_register(DND_FILES)
+    drop_label.dnd_bind('<<Drop>>', on_drop)
+    canvas.bind("<Enter>", drag_enter)
+    canvas.bind("<Leave>", drag_leave)
+    canvas.bind('<Button-1>', choose_file)
+    canvas.dnd_bind('<<Drop>>', on_drop)
+    canvas.drop_target_register(DND_FILES)
 
-def update_checkbox_state(var, widget, var2, var3):
-    if var.get() == 1:
-        var2.set(0)
-        var3.set(0)
-        widget['state'] = 'normal'
+    label = tk.Label(canvas, bd=0, bg="white")
 
-# You can choose to use ZoeD_N for indoor scenes, ZoeD_K for outdoor road scenes, and ZoeD_NK for generic scenes
-# - shariqfarooq123 (https://github.com/isl-org/ZoeDepth/issues/10#issuecomment-1475260262)
+    settings_frame = tk.Frame(root)
+    settings_frame.pack(side=tk.BOTTOM, pady=10)
 
-ZD_N_var = tk.IntVar(value=1)
-ZD_N_Check = tk.Checkbutton(settings_frame, text= 'ZoeD_N', variable=ZD_N_var, command=lambda: update_checkbox_state(ZD_N_var, ZD_N_Check, ZD_NK_var, ZD_K_var))
-ZD_N_Check.pack(side=tk.LEFT)
-Hovertip(ZD_N_Check, "Model ZD_N: Best for Indoor scenes.")
+    def update_checkbox_state(var, widget, var2, var3):
+        if var.get() == 1:
+            var2.set(0)
+            var3.set(0)
+            widget['state'] = 'normal'
 
-ZD_K_var = tk.IntVar()
-ZD_K_Check = tk.Checkbutton(settings_frame, text= 'ZoeD_K', variable=ZD_K_var, command=lambda: update_checkbox_state(ZD_K_var, ZD_N_Check, ZD_NK_var, ZD_N_var))
-ZD_K_Check.pack(side=tk.LEFT)
-Hovertip(ZD_K_Check, "Model ZD_K: Best for Outdoor scenes.")
+    # You can choose to use ZoeD_N for indoor scenes, ZoeD_K for outdoor road scenes, and ZoeD_NK for generic scenes
+    # - shariqfarooq123 (https://github.com/isl-org/ZoeDepth/issues/10#issuecomment-1475260262)
 
-ZD_NK_var = tk.IntVar()
-ZD_NK_Check = tk.Checkbutton(settings_frame, text= 'ZoeD_NK', variable=ZD_NK_var, command=lambda: update_checkbox_state(ZD_NK_var, ZD_N_Check, ZD_N_var, ZD_K_var))
-ZD_NK_Check.pack(side=tk.LEFT)
-Hovertip(ZD_K_Check, "Model ZD_NK: Best for generic scenes.")
+    ZD_N_var = tk.IntVar(value=1)
+    ZD_N_Check = tk.Checkbutton(settings_frame, text= 'ZoeD_N', variable=ZD_N_var, command=lambda: update_checkbox_state(ZD_N_var, ZD_N_Check, ZD_NK_var, ZD_K_var))
+    ZD_N_Check.pack(side=tk.LEFT)
+    Hovertip(ZD_N_Check, "Model ZD_N: Best for Indoor scenes.")
 
-print("Current working directory:", os.getcwd())
-print("Executable path:", sys.executable)
+    ZD_K_var = tk.IntVar()
+    ZD_K_Check = tk.Checkbutton(settings_frame, text= 'ZoeD_K', variable=ZD_K_var, command=lambda: update_checkbox_state(ZD_K_var, ZD_N_Check, ZD_NK_var, ZD_N_var))
+    ZD_K_Check.pack(side=tk.LEFT)
+    Hovertip(ZD_K_Check, "Model ZD_K: Best for Outdoor scenes.")
+
+    ZD_NK_var = tk.IntVar()
+    ZD_NK_Check = tk.Checkbutton(settings_frame, text= 'ZoeD_NK', variable=ZD_NK_var, command=lambda: update_checkbox_state(ZD_NK_var, ZD_N_Check, ZD_N_var, ZD_K_var))
+    ZD_NK_Check.pack(side=tk.LEFT)
+    Hovertip(ZD_K_Check, "Model ZD_NK: Best for generic scenes.")
+
+    print("Current working directory:", os.getcwd())
+    print("Executable path:", sys.executable)
+    
+    if not os.path.exists('.\\ZoeDepth'):
+        Repo.clone_from('https://github.com/isl-org/ZoeDepth.git', 'ZoeDepth')
+    splash_screen.destroy()
+    root.deiconify()
 
 def ongoing_process():
     global progress_label, progress_bar
@@ -236,6 +244,7 @@ def update_pbar(texthere, progress, filenum=0, filestotal=0, infLoad=False):
         progress_bar["value"] = progress
 
 def Tiled_ZoeDepth_process(file_path):
+    from ZoeDepth.zoedepth.utils.misc import get_image_from_url, colorize
     # Unpack widgets
     ongoing_process()
     # Load model
@@ -537,4 +546,20 @@ def Tiled_ZoeDepth_process(file_path):
     
     restore_main()
 
+def on_closing():
+    if os.path.exists('temp'):
+        shutil.rmtree('temp')
+        print("temp removed successfully.")
+    else:
+        print("temp does not exist.")
+        
+    print("Closing the application.")
+    
+    atexit.unregister(on_closing)  # Unregister the atexit callback
+    root.destroy()
+
+root.protocol("WM_DELETE_WINDOW", on_closing)
+atexit.register(on_closing)
+
+splash_screen.after(1000, main)
 root.mainloop()
