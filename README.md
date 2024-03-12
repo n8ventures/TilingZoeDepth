@@ -1,15 +1,83 @@
-# [WIP] Local GUI version
+# Tiled Zoe Depth GUI
 Basic GUI Implimentation based on [BillFSmith's](https://github.com/BillFSmith/) [TilingZoeDepth](https://github.com/BillFSmith/TilingZoeDepth).
 
 ## Prequisites
-CUDA-capable system (Nvidia GPU)
-Python 10.6
+Python 3.10
+
+## Recommended
+### CUDA-capable system (Nvidia GPU)
+- If you don't have an NVIDIA GPU, you'll be defaulted to use CPU for depth map generation (It's really slow).
 
 ## Setup
 1. run `pip3 -r requirements.txt` first to download the packages.
 2. On first start, run `python Tiled_ZoeDepth.py` to download the ZoeDepth repo.
 
-# Original Description
+## How to use
+### 1. First, before we import our images. Select your preferred ZoeDepth model
+
+ "You can choose to use ZoeD_N for indoor scenes, ZoeD_K for outdoor road scenes, and ZoeD_NK for generic scenes"
+
+ source: https://github.com/isl-org/ZoeDepth/issues/10#issuecomment-1475260262
+
+ ![Selecting Zoe_D Model](/assets/howtouse/2.gif)
+
+### 2. Drag and drop your images on the drag-and-drop area.
+ ![Main Menu](/assets/howtouse/1a.gif)
+
+ alternatively, click on the drag-and-drop area to select your images.
+ ![Alternate import](/assets/howtouse/1b.gif)
+
+### 3. During depth map generation, you will be able to see the original version of Zoe Depth already displayed while the High Quality Depth Map (Tiled Zoe Depth) is processing. You can also see the progress bar moving to ensure user does not panic if it's stuck.
+ ![Low Quality Depth Map Preview](/assets/howtouse/3.png)
+
+<details>
+<summary> How the progress bar works </summary>
+
+The progress bar is more of an indicator on how close the process is done. I placed checkpoints around the code that will closely resemble the process progress. (It's more of a guestimation).
+
+Here are the checkpoints:
+
+ **1%**:     Loading Model
+        
+- If model is not downloaded, progress bar switches to indeterminate while it's downloading in the background. (At the moment, I have no idea on how to impliment a progressbar download without modifying the torch module.)
+
+ **10%**:    Checking if CUDA is available or not
+
+ **20%**++: Generating low-res depth map
+
+ **30%**++: Generating filters
+
+ **60%**:    Saving filters
+
+ **60%**++: Compiling tiles & creating depth maps
+
+ **80%**:    Saving tiles
+
+ **90%**:    Combining depth maps
+
+ **95%**:    Generating High-quality depth map
+
+ **99%**:    Saving depthmaps...
+
+ **100%**:   Images saved
+
+</details>
+
+### 4. After the high quality depth map has been generated, there will be 3 seconds of preview before you can choose to save the image/s or cancel it.
+
+ ![Low Quality Depth Map Preview](/assets/howtouse/4.gif)
+
+## Notes
+
+- I only tested this on Windows. Not sure if it will work on Linux or MacOS
+
+Images used:
+
+ - [Kazuya Guy](https://knowyourmeme.com/memes/kazuya-guy/)
+
+ - [Ichiban Low Fade art by Jaya](https://twitter.com/grunt727idn/status/1757017781042880702)
+
+# Original README
 # Tiling ZoeDepth outputs for higher resolution
 v3 has a more reliable upload system for larger files. Can take multiple files at once:
 
