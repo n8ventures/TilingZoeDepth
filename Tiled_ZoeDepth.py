@@ -225,9 +225,28 @@ def restore_main():
     ZD_NK_Check.pack(side=tk.LEFT)
     root.update_idletasks()
     settings_frame.update_idletasks()
-    
 
 def update_pbar(texthere, progress, filenum=0, filestotal=0, infLoad=False):
+    r'''
+    **update_pbar(texthere, progress, filenum=0, filestotal=0, infLoad=False)**
+
+Updates a progress bar with the provided information.
+
+This function updates the value and text of a progress bar based on the given parameters. The `texthere` parameter is used to set the text displayed on the progress bar. The `progress` parameter represents the progress value, which is used to update the progress bar's value. The `filenum` and `filestotal` parameters are optional and used to display the current file number and total number of files being processed. The `infLoad` parameter is a flag indicating whether the progress bar should be in indeterminate mode or not.
+
+Args:
+    texthere (str): The text to be displayed on the progress bar.
+    progress (float): The progress value, ranging from 0 to 100.
+    filenum (int, optional): The current file number. Defaults to 0.
+    filestotal (int, optional): The total number of files being processed. Defaults to 0.
+    infLoad (bool, optional): Flag indicating whether the progress bar should be in indeterminate mode. Defaults to False.
+
+Returns:
+    None
+
+Raises:
+    None
+    '''
     progress_bar["value"] = progress
     progress = round(progress,2)
     if filenum == 0 and filestotal == 0 or filestotal == 1:
@@ -243,24 +262,32 @@ def update_pbar(texthere, progress, filenum=0, filestotal=0, infLoad=False):
         progress_bar.config(mode='determinate')
         progress_bar["value"] = progress
 
+def suppress_outputs():
+    sys.stderr = open(os.devnull, 'w')
+    sys.__stderr__ = open(os.devnull, 'w')
+    sys.stdout = open(os.devnull, 'w')
+    sys.__stdout__ = open(os.devnull, 'w')
+
 def Tiled_ZoeDepth_process(file_path):
     from ZoeDepth.zoedepth.utils.misc import get_image_from_url, colorize
     # Unpack widgets
     ongoing_process()
+    # Disable verbose on exe (verbose=verbose on torch does not work, so we're forcing to supress.)
+    suppress_outputs()
     # Load model
     if ZD_N_var.get():
         if os.path.exists('.\\torch\\cache\\checkpoints\\ZoeD_M12_N.pt'):
             update_pbar('Loading ZoeD_N Model... |', 1)
         else:
             update_pbar('Downloading ZoeD_N Model... ', 0, infLoad=True)
-        # Load ZoeD_N Model    
+        # Load ZoeD_N Model
         zoe = torch.hub.load(".\\ZoeDepth", "ZoeD_N", source="local", pretrained=True, trust_repo=True)
     elif ZD_K_var.get():
         if os.path.exists('.\\torch\\cache\\checkpoints\\ZoeD_M12_K.pt'):
             update_pbar('Loading ZoeD_K Model... |', 1)
         else:
             update_pbar('Downloading ZoeD_K Model... ', 0, infLoad=True)
-        
+
         # Load ZoeD_K Model    
         zoe = torch.hub.load(".\\ZoeDepth", "ZoeD_K", source="local", pretrained=True, trust_repo=True)
     elif ZD_NK_var.get():
@@ -268,7 +295,7 @@ def Tiled_ZoeDepth_process(file_path):
             update_pbar('Loading ZoeD_NK Model... |', 1)
         else:
             update_pbar('Downloading ZoeD_NK Model... ', 0, infLoad=True)
-        
+
         # Load ZoeD_NK Model
         zoe = torch.hub.load(".\\ZoeDepth", "ZoeD_NK", source="local", pretrained=True, trust_repo=True)
 
@@ -277,38 +304,38 @@ def Tiled_ZoeDepth_process(file_path):
         update_pbar('Cuda is available! Starting process... ', 10, infLoad=True) 
     else:
         update_pbar('Cuda not available! Using CPU instead. Starting process... ', 10, infLoad=True)
-    
+
     DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-        
+
     dependencies['zoe'] = zoe.to(DEVICE)
 
     # Load and process the image/s
     save_filter_images = True
-    
+
     for filenum, file in enumerate(file_path, start=1):
         #create temp folder
         os.makedirs('.\\temp', exist_ok=True)
-        
+
         image_file = os.path.basename(file)
-        
+
         img = Image.open(file)
 
         # Generate low resolution image
         low_res_depth = dependencies['zoe'].infer_pil(img)
         low_res_scaled_depth = 2**16 - (low_res_depth - np.min(low_res_depth)) * 2**16 / (np.max(low_res_depth) - np.min(low_res_depth))
-        
+
         update_pbar(f'{image_file}: Generating low-res depth map\n', 20, filenum, len(file_path))
-        
+
         low_res_depth_map_image = Image.fromarray((0.999 * low_res_scaled_depth).astype("uint16"))
         low_res_depth_map_image.save('temp\\zoe_depth_map_16bit_low.png')
-        
+
         fig = plt.Figure()
         ax1 = fig.add_subplot(111)
 
         ax1.imshow(low_res_scaled_depth, cmap='magma')
         ax1.axis('off')
         ax1.set_title('Low Quality Depth Map')
-        
+
 
         magma_images = FigureCanvasTkAgg(fig, master=canvas)
         magma_images.draw()
@@ -321,7 +348,7 @@ def Tiled_ZoeDepth_process(file_path):
         # store filters in lists
         pbar_value = 30
         update_pbar(f'{image_file}: Generating filters\n', pbar_value, filenum, len(file_path))
-        
+
         im = np.asarray(img)
         tile_sizes = [[4, 4], [8, 8]]
         filters = []
@@ -347,7 +374,7 @@ def Tiled_ZoeDepth_process(file_path):
                 pbar_value += .008
                 update_pbar(f'{image_file}: Generating filters\n', pbar_value, filenum, len(file_path))
                 for j in range(N):
-                    
+
                     x_value = 0.998*np.cos((abs(M/2-i)/M)*np.pi)**2
                     y_value = 0.998*np.cos((abs(N/2-j)/N)*np.pi)**2
 
@@ -400,7 +427,7 @@ def Tiled_ZoeDepth_process(file_path):
             filters.append(filter_dict)
             if save_filter_images:
                 update_pbar(f'{image_file}: Saving filters\n', 60, filenum, len(file_path))
-                
+
                 for filter in list(filter_dict.keys()):
                     filter_image = Image.fromarray((filter_dict[filter]*2**16).astype("uint16"))
                     filter_image.save(f'temp\\mask_{filter}_{num_x}_{num_y}.png')
@@ -408,7 +435,7 @@ def Tiled_ZoeDepth_process(file_path):
         # Compile tiles and create depth maps
         pbar_value = 60
         update_pbar(f'{image_file}: Compiling tiles & creating depth maps\n', pbar_value, filenum, len(file_path))
-        
+
         compiled_tiles_list = []
 
         for i in range(len(filters)):
@@ -429,7 +456,7 @@ def Tiled_ZoeDepth_process(file_path):
 
             x_coords_all = x_coords + x_coords_between
             y_coords_all = y_coords + y_coords_between
-            
+
             for x in x_coords_all:
                 for y in y_coords_all:
                     pbar_value += .04
@@ -463,13 +490,13 @@ def Tiled_ZoeDepth_process(file_path):
 
             compiled_tiles[compiled_tiles < 0] = 0
             compiled_tiles_list.append(compiled_tiles)
-            
+
             tiled_depth_map = Image.fromarray((2**16 * 0.999 * compiled_tiles / np.max(compiled_tiles)).astype("uint16"))
-            
+
             update_pbar(f'{image_file}: Saving tiles\n', 80, filenum, len(file_path))
-            
+
             tiled_depth_map.save(f'temp\\tiled_depth_{i}.png')
-        
+
         update_pbar(f'{image_file}: Combining depth maps\n', 90, filenum, len(file_path))
         # Combine depth maps
         grey_im = np.mean(im, axis=2)
@@ -481,10 +508,10 @@ def Tiled_ZoeDepth_process(file_path):
         tiles_difference = np.clip(tiles_difference, 0, 0.999)
 
         update_pbar(f'{image_file}: Generating High-quality depth map\n', 95, filenum, len(file_path))
-        
+
         mask_image = Image.fromarray((tiles_difference*2**16).astype("uint16"))
         mask_image.save('temp\\mask_image.png')
-        
+
         combined_result = (tiles_difference * compiled_tiles_list[1] + (1-tiles_difference) * ((compiled_tiles_list[0] + low_res_scaled_depth)/2))/(2)
 
         # Display results
@@ -493,27 +520,27 @@ def Tiled_ZoeDepth_process(file_path):
 
         ax1 = fig.add_subplot(121)
         ax2 = fig.add_subplot(122)
-        
+
         ax1.imshow(low_res_scaled_depth, cmap='magma')
         ax1.axis('off')
         ax1.set_title('Low Quality Depth Map')
-        
+
         ax2.imshow(combined_result, cmap='magma')
         ax2.axis('off')
         ax2.set_title('Hiqh Quality Depth Map')
         magma_images = FigureCanvasTkAgg(fig, master=canvas)
         magma_images.draw()
-        
+
         plt_canvas = magma_images.get_tk_widget()
         plt_canvas.pack(fill=tk.BOTH, expand=True)
 
         combined_image = Image.fromarray((2**16 * 0.999* combined_result / np.max(combined_result)).astype("uint16"))
-        
+
         time.sleep(3)
-        
+
         # Save image
         update_pbar(f'{image_file}: Saving low quality and high quality depth maps...\n', 99, filenum, len(file_path))
-        
+
         if output_file := filedialog.asksaveasfile(
             defaultextension=".gif",
             initialfile=f"{os.path.splitext(os.path.basename(file))[0]}_TiledZoeDepth.png",
@@ -523,7 +550,7 @@ def Tiled_ZoeDepth_process(file_path):
             low_res_depth_map_image.save(output_file.name.replace("_TiledZoeDepth.png", "_ZoeDepth.png"))
             update_pbar(f'{image_file}: Saved!\n', 100, filenum, len(file_path))
             output_file.close()
-        
+
         # print('Original low resolution result')
         # plt.imshow(low_res_scaled_depth, 'magma')
         # plt.axis("off")
@@ -543,7 +570,7 @@ def Tiled_ZoeDepth_process(file_path):
             print("temp does not exist.")
 
         plt_canvas.destroy()
-    
+
     restore_main()
 
 def on_closing():
