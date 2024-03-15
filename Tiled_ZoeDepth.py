@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from scipy.ndimage import gaussian_filter
 import os
-from git import Repo
 import tkinter as tk
 from tkinter import filedialog, ttk
 from tkinterdnd2 import TkinterDnD, DND_FILES
@@ -19,6 +18,9 @@ import time
 import re
 from idlelib.tooltip import Hovertip
 import atexit
+import requests
+import zipfile
+import io
 
 contents_dir = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
 torch_cache = '.\\torch\\cache'
@@ -184,7 +186,12 @@ def main():
     print("Executable path:", sys.executable)
     
     if not os.path.exists('.\\ZoeDepth'):
-        Repo.clone_from('https://github.com/isl-org/ZoeDepth.git', 'ZoeDepth')
+    # TODO not use git
+        #Repo.clone_from('https://github.com/isl-org/ZoeDepth.git', 'ZoeDepth')
+        repo_url = "https://github.com/isl-org/ZoeDepth/archive/refs/heads/main.zip"
+        response = requests.get(repo_url)
+        zip_file = zipfile.ZipFile(io.BytesIO(response.content))
+        zip_file.extractall("ZoeDepth")
     splash_screen.destroy()
     root.deiconify()
 
@@ -273,7 +280,9 @@ def Tiled_ZoeDepth_process(file_path):
     # Unpack widgets
     ongoing_process()
     # Disable verbose on exe (verbose=verbose on torch does not work, so we're forcing to supress.)
-    suppress_outputs()
+    # suppress_outputs()
+    
+    # TODO make progressbar more usable by downloading models that interact pbar instead of just torch doing all the work
     # Load model
     if ZD_N_var.get():
         if os.path.exists('.\\torch\\cache\\checkpoints\\ZoeD_M12_N.pt'):
@@ -321,7 +330,11 @@ def Tiled_ZoeDepth_process(file_path):
         img = Image.open(file)
 
         # Generate low resolution image
+        
+        # TODO Exit proccess; Send message that image is not supported
+            # assert x.shape[1] == 3, "x must have 3 channels, got {}".format(x.shape[1])
         low_res_depth = dependencies['zoe'].infer_pil(img)
+            # AssertionError: x must have 3 channels, got 4
         low_res_scaled_depth = 2**16 - (low_res_depth - np.min(low_res_depth)) * 2**16 / (np.max(low_res_depth) - np.min(low_res_depth))
 
         update_pbar(f'{image_file}: Generating low-res depth map\n', 20, filenum, len(file_path))
