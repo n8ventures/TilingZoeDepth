@@ -171,12 +171,12 @@ def main():
     ZD_N_var = tk.IntVar(value=1)
     ZD_N_Check = tk.Checkbutton(settings_frame, text= 'ZoeD_N', variable=ZD_N_var, command=lambda: update_checkbox_state(ZD_N_var, ZD_N_Check, ZD_NK_var, ZD_K_var))
     ZD_N_Check.pack(side=tk.LEFT)
-    Hovertip(ZD_N_Check, "Model ZoeyD_N: Best for Indoor scenes.")
+    Hovertip(ZD_N_Check, "Model ZoeD_N: Best for Indoor scenes.")
 
     ZD_K_var = tk.IntVar()
     ZD_K_Check = tk.Checkbutton(settings_frame, text= 'ZoeD_K', variable=ZD_K_var, command=lambda: update_checkbox_state(ZD_K_var, ZD_N_Check, ZD_NK_var, ZD_N_var))
     ZD_K_Check.pack(side=tk.LEFT)
-    Hovertip(ZD_K_Check, "Model ZoeyD_K: Best for Outdoor scenes.")
+    Hovertip(ZD_K_Check, "Model ZoeD_K: Best for Outdoor scenes.")
 
     ZD_NK_var = tk.IntVar()
     ZD_NK_Check = tk.Checkbutton(settings_frame, text= 'ZoeD_NK', variable=ZD_NK_var, command=lambda: update_checkbox_state(ZD_NK_var, ZD_N_Check, ZD_N_var, ZD_K_var))
