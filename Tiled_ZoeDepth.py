@@ -21,6 +21,7 @@ import atexit
 import requests
 import zipfile
 import io
+import math 
 
 contents_dir = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
 torch_cache = '.\\torch\\cache'
@@ -170,30 +171,35 @@ def main():
     ZD_N_var = tk.IntVar(value=1)
     ZD_N_Check = tk.Checkbutton(settings_frame, text= 'ZoeD_N', variable=ZD_N_var, command=lambda: update_checkbox_state(ZD_N_var, ZD_N_Check, ZD_NK_var, ZD_K_var))
     ZD_N_Check.pack(side=tk.LEFT)
-    Hovertip(ZD_N_Check, "Model ZD_N: Best for Indoor scenes.")
+    Hovertip(ZD_N_Check, "Model ZoeyD_N: Best for Indoor scenes.")
 
     ZD_K_var = tk.IntVar()
     ZD_K_Check = tk.Checkbutton(settings_frame, text= 'ZoeD_K', variable=ZD_K_var, command=lambda: update_checkbox_state(ZD_K_var, ZD_N_Check, ZD_NK_var, ZD_N_var))
     ZD_K_Check.pack(side=tk.LEFT)
-    Hovertip(ZD_K_Check, "Model ZD_K: Best for Outdoor scenes.")
+    Hovertip(ZD_K_Check, "Model ZoeyD_K: Best for Outdoor scenes.")
 
     ZD_NK_var = tk.IntVar()
     ZD_NK_Check = tk.Checkbutton(settings_frame, text= 'ZoeD_NK', variable=ZD_NK_var, command=lambda: update_checkbox_state(ZD_NK_var, ZD_N_Check, ZD_N_var, ZD_K_var))
     ZD_NK_Check.pack(side=tk.LEFT)
-    Hovertip(ZD_K_Check, "Model ZD_NK: Best for generic scenes.")
+    Hovertip(ZD_K_Check, "Model ZoeD_NK: Best for generic scenes.")
 
     print("Current working directory:", os.getcwd())
     print("Executable path:", sys.executable)
     
     if not os.path.exists('.\\ZoeDepth'):
-    # TODO not use git
         #Repo.clone_from('https://github.com/isl-org/ZoeDepth.git', 'ZoeDepth')
-        repo_url = "https://github.com/isl-org/ZoeDepth/archive/refs/heads/main.zip"
-        response = requests.get(repo_url)
-        zip_file = zipfile.ZipFile(io.BytesIO(response.content))
-        zip_file.extractall("ZoeDepth")
+        dlzip_unzip_rm("https://github.com/isl-org/ZoeDepth/archive/refs/heads/main.zip")
+        extracted_folder = "ZoeDepth-main"
+        new_folder_name = "ZoeDepth"
+        os.rename(extracted_folder, new_folder_name)
+    
     splash_screen.destroy()
     root.deiconify()
+
+def dlzip_unzip_rm(repo_url, extract_path = '.'):
+    response = requests.get(repo_url)
+    zip_file = zipfile.ZipFile(io.BytesIO(response.content))
+    zip_file.extractall(extract_path)
 
 def ongoing_process():
     global progress_label, progress_bar
@@ -275,6 +281,124 @@ def suppress_outputs():
     sys.stdout = open(os.devnull, 'w')
     sys.__stdout__ = open(os.devnull, 'w')
 
+def format_time(seconds):
+    '''Formats the given time duration in seconds into a string representation.
+
+This function takes a time duration in seconds and formats it into a string representation in the format "HH:MM:SS". If the input is `None`, not a number, or infinite, it returns "00:00:00" or "Infinity" respectively.
+
+Args:
+    seconds (int or float): The time duration in seconds.
+
+Returns:
+    str: The formatted time duration in the format "HH:MM:SS".
+
+Raises:
+    None'''
+    if seconds is None or not isinstance(seconds, (int, float)):
+        return "00:00:00" 
+    elif math.isinf(seconds):
+        return "Infinity"
+    
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
+
+def format_bytes(bytes, decimal_places=2):
+    for unit in ['', 'KB', 'MB', 'GB']:
+        if abs(bytes) < 1024.0:
+            return f"{bytes:.{decimal_places}f} {unit}"
+        bytes /= 1024.0
+
+def download_file(url, path='.'):
+    r'''Downloads a file from the specified URL and saves it to the given path.
+
+This function downloads a file from the specified URL and saves it to the specified path. If no path is provided, the file is saved in the current directory. The function supports resuming partial downloads.
+
+Args:
+    url (str): The URL of the file to download.
+    path (str, optional): The path where the file should be saved. Defaults to '.' (current directory).
+
+Returns:
+    None
+
+Raises:
+    None
+    '''
+    filename = os.path.basename(url)
+    file_path = os.path.join(path, filename)
+    partial_file_path = f"{file_path}.partial"
+
+    bytes_so_far = 0
+    resume = False
+
+    if os.path.exists(file_path):
+        if os.path.exists(partial_file_path):
+            os.remove(partial_file_path)
+        total_size = os.path.getsize(file_path)
+    elif os.path.exists(partial_file_path):
+        bytes_so_far = os.path.getsize(partial_file_path)
+        resume = True
+
+    response = requests.get(url, stream=True, headers={"Range": f"bytes={bytes_so_far}-"})
+    if response.status_code == 416:
+        response = requests.get(url, stream=True)
+    elif response.status_code not in [200, 206]:
+        progress_label.config(text=f'Response Code: {response.status_code}\n Please check your internet connection. This application will now close.')
+        progress_bar.pack_forget()
+        time.sleep(5)
+        on_closing()
+
+    total_size = int(response.headers.get('content-length', 0))
+    total_size_existing_file = bytes_so_far + total_size if resume else 0
+    
+    start_time = time.time()
+    if bytes_so_far == total_size:
+        os.rename(partial_file_path, file_path)
+        progress_label.config(text=f"Download complete: {filename}")
+    else:
+        resumed_bytes = 0
+        with open(partial_file_path, "ab") as f:
+            for chunk in response.iter_content(chunk_size=1024):
+                if chunk:
+                    f.write(chunk)
+                    bytes_so_far += len(chunk)
+                    resumed_bytes += len(chunk)
+
+                    elapsed_time = time.time() - start_time
+                    if resume:
+                        download_speed = resumed_bytes / elapsed_time if elapsed_time > 0 else 0
+                        remaining_bytes = total_size_existing_file - bytes_so_far
+                        time_remaining = remaining_bytes / download_speed if download_speed > 0 else float('inf')
+                        progress = int(bytes_so_far * 100 / total_size_existing_file)
+                        progress_bar["value"] = progress
+                        progress_label.config(text=f"Resuming {filename} | "
+                                                    f"{progress}% \n"
+                                                    f"{format_bytes(bytes_so_far)} / {format_bytes(total_size_existing_file)} " 
+                                                    f"[{format_time(elapsed_time)} > {format_time(time_remaining)}, "
+                                                    f"{format_bytes(download_speed)}/s]")
+                    else:
+                        download_speed = bytes_so_far / elapsed_time if elapsed_time > 0 else 0
+                        remaining_bytes = total_size - bytes_so_far
+                        time_remaining = remaining_bytes / download_speed if download_speed > 0 else float('inf')   
+                        progress = int(bytes_so_far * 100 / total_size)
+                        progress_bar["value"] = progress
+                        progress_label.config(text=f"Downloading {filename} | "
+                                                    f"{progress}% \n"
+                                                    f"{format_bytes(bytes_so_far)} / {format_bytes(total_size)} " 
+                                                    f"[{format_time(elapsed_time)} > {format_time(time_remaining)}, "
+                                                    f"{format_bytes(download_speed)}/s]")
+                    root.update_idletasks()
+        f.close()
+        if (
+            total_size_existing_file == 0 and bytes_so_far == total_size
+            or 
+            total_size_existing_file != 0 and bytes_so_far == total_size_existing_file
+        ):
+            os.rename(partial_file_path, file_path)
+            progress_label.config(text=f"Download complete: {filename}")
+
+    root.update_idletasks()
+
 def Tiled_ZoeDepth_process(file_path):
     from ZoeDepth.zoedepth.utils.misc import get_image_from_url, colorize
     # Unpack widgets
@@ -282,31 +406,40 @@ def Tiled_ZoeDepth_process(file_path):
     # Disable verbose on exe (verbose=verbose on torch does not work, so we're forcing to supress.)
     # suppress_outputs()
     
-    # TODO make progressbar more usable by downloading models that interact pbar instead of just torch doing all the work
     # Load model
+    model_path = '.\\torch\\cache\\checkpoints'
+    ZDN_pt = 'https://github.com/isl-org/ZoeDepth/releases/download/v1.0/ZoeD_M12_N.pt'
+    ZDK_pt = 'https://github.com/isl-org/ZoeDepth/releases/download/v1.0/ZoeD_M12_K.pt'
+    ZDNK_pt = 'https://github.com/isl-org/ZoeDepth/releases/download/v1.0/ZoeD_M12_NK.pt'
     if ZD_N_var.get():
-        if os.path.exists('.\\torch\\cache\\checkpoints\\ZoeD_M12_N.pt'):
+        if os.path.exists(f'{model_path}\\ZoeD_M12_N.pt'):
             update_pbar('Loading ZoeD_N Model... |', 1)
         else:
-            update_pbar('Downloading ZoeD_N Model... ', 0, infLoad=True)
+            download_file(ZDN_pt,model_path)
+            update_pbar('Loading ZoeD_N Model... |', 1)
         # Load ZoeD_N Model
         zoe = torch.hub.load(".\\ZoeDepth", "ZoeD_N", source="local", pretrained=True, trust_repo=True)
+        model = 'Model: ZoeD_N'
     elif ZD_K_var.get():
-        if os.path.exists('.\\torch\\cache\\checkpoints\\ZoeD_M12_K.pt'):
+        if os.path.exists(f'{model_path}\\ZoeD_M12_K.pt'):
             update_pbar('Loading ZoeD_K Model... |', 1)
         else:
-            update_pbar('Downloading ZoeD_K Model... ', 0, infLoad=True)
+            download_file(ZDK_pt,model_path)
+            update_pbar('Loading ZoeD_K Model... |', 1)
 
         # Load ZoeD_K Model    
         zoe = torch.hub.load(".\\ZoeDepth", "ZoeD_K", source="local", pretrained=True, trust_repo=True)
+        model = 'Model: ZoeD_K'
     elif ZD_NK_var.get():
-        if os.path.exists('.\\torch\\cache\\checkpoints\\ZoeD_M12_NK.pt'):
+        if os.path.exists(f'{model_path}\\ZoeD_M12_NK.pt'):
             update_pbar('Loading ZoeD_NK Model... |', 1)
         else:
-            update_pbar('Downloading ZoeD_NK Model... ', 0, infLoad=True)
+            download_file(ZDNK_pt,model_path)
+            update_pbar('Loading ZoeD_NK Model... |', 1)
 
         # Load ZoeD_NK Model
         zoe = torch.hub.load(".\\ZoeDepth", "ZoeD_NK", source="local", pretrained=True, trust_repo=True)
+        model = 'Model: ZoeD_NK'
 
     # Load CUDA dependency
     if torch.cuda.is_available() == True:
@@ -328,20 +461,20 @@ def Tiled_ZoeDepth_process(file_path):
         image_file = os.path.basename(file)
 
         img = Image.open(file)
+        
+        if img.mode != 'RGB':
+            img = img.convert("RGB")
 
         # Generate low resolution image
-        
-        # TODO Exit proccess; Send message that image is not supported
-            # assert x.shape[1] == 3, "x must have 3 channels, got {}".format(x.shape[1])
         low_res_depth = dependencies['zoe'].infer_pil(img)
-            # AssertionError: x must have 3 channels, got 4
         low_res_scaled_depth = 2**16 - (low_res_depth - np.min(low_res_depth)) * 2**16 / (np.max(low_res_depth) - np.min(low_res_depth))
 
         update_pbar(f'{image_file}: Generating low-res depth map\n', 20, filenum, len(file_path))
 
         low_res_depth_map_image = Image.fromarray((0.999 * low_res_scaled_depth).astype("uint16"))
         low_res_depth_map_image.save('temp\\zoe_depth_map_16bit_low.png')
-
+        
+        # Display depth map on window
         fig = plt.Figure()
         ax1 = fig.add_subplot(111)
 
@@ -349,6 +482,7 @@ def Tiled_ZoeDepth_process(file_path):
         ax1.axis('off')
         ax1.set_title('Low Quality Depth Map')
 
+        fig.text(0.5, 0.03, model, horizontalalignment='center', fontsize=12)
 
         magma_images = FigureCanvasTkAgg(fig, master=canvas)
         magma_images.draw()
@@ -541,6 +675,9 @@ def Tiled_ZoeDepth_process(file_path):
         ax2.imshow(combined_result, cmap='magma')
         ax2.axis('off')
         ax2.set_title('Hiqh Quality Depth Map')
+
+        fig.text(0.5, 0.03, model, horizontalalignment='center', fontsize=12)
+
         magma_images = FigureCanvasTkAgg(fig, master=canvas)
         magma_images.draw()
 
