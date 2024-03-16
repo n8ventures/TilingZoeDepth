@@ -188,7 +188,7 @@ def main():
     
     if not os.path.exists('.\\ZoeDepth'):
         #Repo.clone_from('https://github.com/isl-org/ZoeDepth.git', 'ZoeDepth')
-        dlzip_unzip_rm("https://github.com/isl-org/ZoeDepth/archive/refs/heads/main.zip")
+        dlzip_unzip("https://github.com/isl-org/ZoeDepth/archive/refs/heads/main.zip")
         extracted_folder = "ZoeDepth-main"
         new_folder_name = "ZoeDepth"
         os.rename(extracted_folder, new_folder_name)
@@ -196,7 +196,7 @@ def main():
     splash_screen.destroy()
     root.deiconify()
 
-def dlzip_unzip_rm(repo_url, extract_path = '.'):
+def dlzip_unzip(repo_url, extract_path = '.'):
     response = requests.get(repo_url)
     zip_file = zipfile.ZipFile(io.BytesIO(response.content))
     zip_file.extractall(extract_path)
@@ -324,6 +324,9 @@ Returns:
 Raises:
     None
     '''
+    if not os.path.exists(path):
+        os.makedirs(path, exist_ok=True)
+
     filename = os.path.basename(url)
     file_path = os.path.join(path, filename)
     partial_file_path = f"{file_path}.partial"
@@ -404,7 +407,7 @@ def Tiled_ZoeDepth_process(file_path):
     # Unpack widgets
     ongoing_process()
     # Disable verbose on exe (verbose=verbose on torch does not work, so we're forcing to supress.)
-    # suppress_outputs()
+    suppress_outputs()
     
     # Load model
     model_path = '.\\torch\\cache\\checkpoints'
