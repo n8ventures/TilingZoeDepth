@@ -104,7 +104,7 @@ def files_selected(file_path):
 
 
 def main():
-    global ZD_N_var, ZD_K_var, ZD_NK_var, ZD_N_Check, ZD_K_Check, ZD_NK_Check
+    global ZD_N_var, ZD_K_var, ZD_NK_var, ZD_N_Check, ZD_K_Check, ZD_NK_Check, Batch_mode_var, Batch_mode_Check
     global canvas, drop_label, settings_frame
     global drag_enter, on_drop, drag_leave
     def on_configure(event):
@@ -182,6 +182,13 @@ def main():
     ZD_NK_Check = tk.Checkbutton(settings_frame, text= 'ZoeD_NK', variable=ZD_NK_var, command=lambda: update_checkbox_state(ZD_NK_var, ZD_N_Check, ZD_N_var, ZD_K_var))
     ZD_NK_Check.pack(side=tk.LEFT)
     Hovertip(ZD_K_Check, "Model ZoeD_NK: Best for generic scenes.")
+    
+    Batch_mode_var = tk.IntVar()
+    Batch_mode_Check = tk.Checkbutton(settings_frame, text='Batch Mode', variable=Batch_mode_var)
+    Batch_mode_Check.pack(padx= 10, side=tk.RIGHT)
+    Hovertip(Batch_mode_Check, "Enable this if you don't want a \'Save as\' prompt and just assumes to save right next to the image.")
+    
+    
 
     print("Current working directory:", os.getcwd())
     print("Executable path:", sys.executable)
@@ -208,6 +215,7 @@ def ongoing_process():
     ZD_N_Check.pack_forget()
     ZD_K_Check.pack_forget()
     ZD_NK_Check.pack_forget()
+    Batch_mode_Check.pack_forget()
     
     canvas.unbind("<Enter>")
     canvas.unbind("<Leave>")
@@ -236,6 +244,7 @@ def restore_main():
     ZD_N_Check.pack(side=tk.LEFT)
     ZD_K_Check.pack(side=tk.LEFT)
     ZD_NK_Check.pack(side=tk.LEFT)
+    Batch_mode_Check.pack(padx= 10, side=tk.RIGHT)
     root.update_idletasks()
     settings_frame.update_idletasks()
 
@@ -693,16 +702,20 @@ def Tiled_ZoeDepth_process(file_path):
 
         # Save image
         update_pbar(f'{image_file}: Saving low quality and high quality depth maps...\n', 99, filenum, len(file_path))
-
-        if output_file := filedialog.asksaveasfile(
-            defaultextension=".gif",
-            initialfile=f"{os.path.splitext(os.path.basename(file))[0]}_TiledZoeDepth.png",
-            filetypes=[("PNG files", "*.png")],
-        ):
-            combined_image.save(output_file.name)
-            low_res_depth_map_image.save(output_file.name.replace("_TiledZoeDepth.png", "_ZoeDepth.png"))
+        if Batch_mode_var.get():
+            combined_image.save(f"{os.path.splitext(file)[0]}_TiledZoeDepth.png")
+            low_res_depth_map_image.save(f"{os.path.splitext(file)[0]}_ZoeDepth.png")
             update_pbar(f'{image_file}: Saved!\n', 100, filenum, len(file_path))
-            output_file.close()
+        else:   
+            if output_file := filedialog.asksaveasfile(
+                defaultextension=".png",
+                initialfile=f"{os.path.splitext(os.path.basename(file))[0]}_TiledZoeDepth.png",
+                filetypes=[("PNG files", "*.png")],
+            ):
+                combined_image.save(output_file.name)
+                low_res_depth_map_image.save(output_file.name.replace("_TiledZoeDepth.png", "_ZoeDepth.png"))
+                update_pbar(f'{image_file}: Saved!\n', 100, filenum, len(file_path))
+                output_file.close()
 
         # print('Original low resolution result')
         # plt.imshow(low_res_scaled_depth, 'magma')
