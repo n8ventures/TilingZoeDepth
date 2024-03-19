@@ -104,7 +104,8 @@ def files_selected(file_path):
 
 
 def main():
-    global ZD_N_var, ZD_K_var, ZD_NK_var, ZD_N_Check, ZD_K_Check, ZD_NK_Check, Batch_mode_var, Batch_mode_Check
+    global ZD_N_var, ZD_K_var, ZD_NK_var, ZD_N_Check, ZD_K_Check, ZD_NK_Check
+    global Batch_mode_var, Batch_mode_Check, cmore86_var, cmore86_Check
     global canvas, drop_label, settings_frame
     global drag_enter, on_drop, drag_leave
     def on_configure(event):
@@ -170,17 +171,17 @@ def main():
 
     ZD_N_var = tk.IntVar(value=1)
     ZD_N_Check = tk.Checkbutton(settings_frame, text= 'ZoeD_N', variable=ZD_N_var, command=lambda: update_checkbox_state(ZD_N_var, ZD_N_Check, ZD_NK_var, ZD_K_var))
-    ZD_N_Check.pack(side=tk.LEFT)
+    ZD_N_Check.pack()
     Hovertip(ZD_N_Check, "Model ZoeD_N: Best for Indoor scenes.")
 
     ZD_K_var = tk.IntVar()
     ZD_K_Check = tk.Checkbutton(settings_frame, text= 'ZoeD_K', variable=ZD_K_var, command=lambda: update_checkbox_state(ZD_K_var, ZD_N_Check, ZD_NK_var, ZD_N_var))
-    ZD_K_Check.pack(side=tk.LEFT)
+    ZD_K_Check.pack()
     Hovertip(ZD_K_Check, "Model ZoeD_K: Best for Outdoor scenes.")
 
     ZD_NK_var = tk.IntVar()
     ZD_NK_Check = tk.Checkbutton(settings_frame, text= 'ZoeD_NK', variable=ZD_NK_var, command=lambda: update_checkbox_state(ZD_NK_var, ZD_N_Check, ZD_N_var, ZD_K_var))
-    ZD_NK_Check.pack(side=tk.LEFT)
+    ZD_NK_Check.pack()
     Hovertip(ZD_K_Check, "Model ZoeD_NK: Best for generic scenes.")
     
     Batch_mode_var = tk.IntVar()
@@ -188,7 +189,10 @@ def main():
     Batch_mode_Check.pack(padx= 10, side=tk.RIGHT)
     Hovertip(Batch_mode_Check, "Enable this if you don't want a \'Save as\' prompt and just assumes to save right next to the image.")
     
-    
+    cmore86_var = tk.IntVar()
+    cmore86_Check = tk.Checkbutton(settings_frame, text='32-bit mode', variable = cmore86_var)
+    cmore86_Check.pack(padx=10, side= tk.RIGHT)
+    Hovertip(cmore86_Check, 'By cmore86. Enable this to export higher quality images.')
 
     print("Current working directory:", os.getcwd())
     print("Executable path:", sys.executable)
@@ -216,6 +220,7 @@ def ongoing_process():
     ZD_K_Check.pack_forget()
     ZD_NK_Check.pack_forget()
     Batch_mode_Check.pack_forget()
+    cmore86_Check.pack_forget()
     
     canvas.unbind("<Enter>")
     canvas.unbind("<Leave>")
@@ -245,6 +250,7 @@ def restore_main():
     ZD_K_Check.pack(side=tk.LEFT)
     ZD_NK_Check.pack(side=tk.LEFT)
     Batch_mode_Check.pack(padx= 10, side=tk.RIGHT)
+    cmore86_Check.pack(padx= 10, side=tk.RIGHT)
     root.update_idletasks()
     settings_frame.update_idletasks()
 
@@ -415,8 +421,11 @@ def Tiled_ZoeDepth_process(file_path):
     from ZoeDepth.zoedepth.utils.misc import get_image_from_url, colorize
     # Unpack widgets
     ongoing_process()
-    # Disable verbose on exe (verbose=verbose on torch does not work, so we're forcing to supress.)
-    suppress_outputs()
+    # NOTE Disable verbose on exe (verbose=verbose on torch does not work, so we're forcing to supress.)
+    # suppress_outputs()
+    # TODO: Optimize code. I think the 32bit switch cluttering around is a bit too much. Gotta set it to a more localized variable.
+    # Special thanks to cmore86 for the 32bit mode.
+    # TODO: inverse the depthmap for 32bit.
     
     # Load model
     model_path = '.\\torch\\cache\\checkpoints'
@@ -479,18 +488,29 @@ def Tiled_ZoeDepth_process(file_path):
 
         # Generate low resolution image
         low_res_depth = dependencies['zoe'].infer_pil(img)
-        low_res_scaled_depth = 2**16 - (low_res_depth - np.min(low_res_depth)) * 2**16 / (np.max(low_res_depth) - np.min(low_res_depth))
 
         update_pbar(f'{image_file}: Generating low-res depth map\n', 20, filenum, len(file_path))
 
-        low_res_depth_map_image = Image.fromarray((0.999 * low_res_scaled_depth).astype("uint16"))
-        low_res_depth_map_image.save('temp\\zoe_depth_map_16bit_low.png')
+        if cmore86_var.get():
+            normalized_depth = (low_res_depth - np.min(low_res_depth)) / (np.max(low_res_depth) - np.min(low_res_depth))
+            
+            low_res_depth_map_image = Image.fromarray(normalized_depth.astype(np.float32))
+            low_res_depth_map_image.save('temp\\zoe_depth_map_32bit_low.tif', format='TIFF')
+            
+            model = model + ' | 32-bit Mode'
+        else:
+            low_res_scaled_depth = 2**16 - (low_res_depth - np.min(low_res_depth)) * 2**16 / (np.max(low_res_depth) - np.min(low_res_depth))
+
+            low_res_depth_map_image = Image.fromarray((0.999 * low_res_scaled_depth).astype("uint16"))
+            low_res_depth_map_image.save('temp\\zoe_depth_map_16bit_low.png')
         
         # Display depth map on window
         fig = plt.Figure()
         ax1 = fig.add_subplot(111)
-
-        ax1.imshow(low_res_scaled_depth, cmap='magma')
+        if cmore86_var.get():
+            ax1.imshow(normalized_depth, cmap='magma')
+        else:
+            ax1.imshow(low_res_scaled_depth, cmap='magma')
         ax1.axis('off')
         ax1.set_title('Low Quality Depth Map')
 
@@ -509,7 +529,12 @@ def Tiled_ZoeDepth_process(file_path):
         update_pbar(f'{image_file}: Generating filters\n', pbar_value, filenum, len(file_path))
 
         im = np.asarray(img)
-        tile_sizes = [[4, 4], [8, 8]]
+
+        if cmore86_var.get():
+            tile_sizes = [[8,8], [12,12]]
+        else:
+            tile_sizes = [[4, 4], [8, 8]]
+
         filters = []
 
         for tile_size in tile_sizes:
@@ -587,9 +612,14 @@ def Tiled_ZoeDepth_process(file_path):
             if save_filter_images:
                 update_pbar(f'{image_file}: Saving filters\n', 60, filenum, len(file_path))
 
-                for filter in list(filter_dict.keys()):
-                    filter_image = Image.fromarray((filter_dict[filter]*2**16).astype("uint16"))
-                    filter_image.save(f'temp\\mask_{filter}_{num_x}_{num_y}.png')
+                if cmore86_var.get():
+                    for filter_name in filter_dict:
+                        filter_image = Image.fromarray(filter_dict[filter_name].astype(np.float32))
+                        filter_image.save(f'temp\\mask_{filter_name}_{num_x}_{num_y}.tif', format='TIFF')
+                else:
+                    for filter in list(filter_dict.keys()):
+                        filter_image = Image.fromarray((filter_dict[filter]*2**16).astype("uint16"))
+                        filter_image.save(f'temp\\mask_{filter}_{num_x}_{num_y}.png')
 
         # Compile tiles and create depth maps
         pbar_value = 60
@@ -623,8 +653,10 @@ def Tiled_ZoeDepth_process(file_path):
                     # depth = zoe.infer_pil(Image.fromarray(np.uint8(im[x:x+M,y:y+N])))
                     depth = dependencies['zoe'].infer_pil(Image.fromarray(np.uint8(im[x:x+M,y:y+N])))
 
-
-                    scaled_depth = 2**16 - (depth - np.min(depth)) * 2**16 / (np.max(depth) - np.min(depth))
+                    if cmore86_var.get():
+                        scaled_depth = (depth - np.min(depth)) / (np.max(depth) - np.min(depth))
+                    else:
+                        scaled_depth = 2**16 - (depth - np.min(depth)) * 2**16 / (np.max(depth) - np.min(depth))
 
                     if y == min(y_coords_all) and x == min(x_coords_all):
                         selected_filter = filters[i]['top_left_filter']
@@ -645,18 +677,26 @@ def Tiled_ZoeDepth_process(file_path):
                     else:
                         selected_filter = filters[i]['filter']
 
-                    compiled_tiles[x:x+M, y:y+N] += selected_filter * (np.mean(low_res_scaled_depth[x:x+M, y:y+N]) + np.std(low_res_scaled_depth[x:x+M, y:y+N]) * ((scaled_depth - np.mean(scaled_depth)) /  np.std(scaled_depth)))
+                    if cmore86_var.get():
+                        compiled_tiles[x:x+M, y:y+N] += selected_filter * (np.mean(normalized_depth[x:x+M, y:y+N]) + np.std(normalized_depth[x:x+M, y:y+N]) * ((scaled_depth - np.mean(scaled_depth)) /  np.std(scaled_depth)))
+                    else:
+                        compiled_tiles[x:x+M, y:y+N] += selected_filter * (np.mean(low_res_scaled_depth[x:x+M, y:y+N]) + np.std(low_res_scaled_depth[x:x+M, y:y+N]) * ((scaled_depth - np.mean(scaled_depth)) /  np.std(scaled_depth)))
 
             compiled_tiles[compiled_tiles < 0] = 0
-            compiled_tiles_list.append(compiled_tiles)
-
-            tiled_depth_map = Image.fromarray((2**16 * 0.999 * compiled_tiles / np.max(compiled_tiles)).astype("uint16"))
 
             update_pbar(f'{image_file}: Saving tiles\n', 80, filenum, len(file_path))
 
-            tiled_depth_map.save(f'temp\\tiled_depth_{i}.png')
+            if cmore86_var.get():
+                compiled_tiles_list.append(compiled_tiles.astype(np.float32))
+                tiled_depth_map = Image.fromarray((compiled_tiles / np.max(compiled_tiles)).astype(np.float32))
+                tiled_depth_map.save(f'temp\\tiled_depth_{i}.tif', format='TIFF')
+            else:
+                compiled_tiles_list.append(compiled_tiles)
+                tiled_depth_map = Image.fromarray((2**16 * 0.999 * compiled_tiles / np.max(compiled_tiles)).astype("uint16"))
+                tiled_depth_map.save(f'temp\\tiled_depth_{i}.png')
 
         update_pbar(f'{image_file}: Combining depth maps\n', 90, filenum, len(file_path))
+
         # Combine depth maps
         grey_im = np.mean(im, axis=2)
         tiles_blur = gaussian_filter(grey_im, sigma=20)
@@ -668,10 +708,17 @@ def Tiled_ZoeDepth_process(file_path):
 
         update_pbar(f'{image_file}: Generating High-quality depth map\n', 95, filenum, len(file_path))
 
-        mask_image = Image.fromarray((tiles_difference*2**16).astype("uint16"))
-        mask_image.save('temp\\mask_image.png')
+        if cmore86_var.get():
+            mask_image = Image.fromarray(tiles_difference.astype(np.float32))
+            mask_image.save('temp\\mask_image.tif', format='TIFF')
 
-        combined_result = (tiles_difference * compiled_tiles_list[1] + (1-tiles_difference) * ((compiled_tiles_list[0] + low_res_scaled_depth)/2))/(2)
+            combined_result = (tiles_difference * compiled_tiles_list[1] + (1 - tiles_difference) * ((compiled_tiles_list[0] + normalized_depth) / 2)) / 2
+            combined_result = combined_result / np.max(combined_result)
+        else:
+            mask_image = Image.fromarray((tiles_difference*2**16).astype("uint16"))
+            mask_image.save('temp\\mask_image.png')
+
+            combined_result = (tiles_difference * compiled_tiles_list[1] + (1-tiles_difference) * ((compiled_tiles_list[0] + low_res_scaled_depth)/2))/(2)
 
         # Display results
         plt_canvas.destroy()
@@ -680,7 +727,11 @@ def Tiled_ZoeDepth_process(file_path):
         ax1 = fig.add_subplot(121)
         ax2 = fig.add_subplot(122)
 
-        ax1.imshow(low_res_scaled_depth, cmap='magma')
+        if cmore86_var.get():
+            ax1.imshow(normalized_depth, cmap='magma')
+        else:
+            ax1.imshow(low_res_scaled_depth, cmap='magma')
+
         ax1.axis('off')
         ax1.set_title('Low Quality Depth Map')
 
@@ -696,26 +747,45 @@ def Tiled_ZoeDepth_process(file_path):
         plt_canvas = magma_images.get_tk_widget()
         plt_canvas.pack(fill=tk.BOTH, expand=True)
 
-        combined_image = Image.fromarray((2**16 * 0.999* combined_result / np.max(combined_result)).astype("uint16"))
+        if cmore86_var.get():
+            combined_image = Image.fromarray(combined_result.astype(np.float32))
+        else:
+            combined_image = Image.fromarray((2**16 * 0.999* combined_result / np.max(combined_result)).astype("uint16"))
 
         time.sleep(3)
 
         # Save image
         update_pbar(f'{image_file}: Saving low quality and high quality depth maps...\n', 99, filenum, len(file_path))
+
         if Batch_mode_var.get():
-            combined_image.save(f"{os.path.splitext(file)[0]}_TiledZoeDepth.png")
-            low_res_depth_map_image.save(f"{os.path.splitext(file)[0]}_ZoeDepth.png")
+            if cmore86_var.get():
+                combined_image.save(f"{os.path.splitext(file)[0]}_TiledZoeDepth.tif", format='TIFF')
+                low_res_depth_map_image.save(f"{os.path.splitext(file)[0]}_ZoeDepth.tif", format='TIFF')
+            else:
+                combined_image.save(f"{os.path.splitext(file)[0]}_TiledZoeDepth.png")
+                low_res_depth_map_image.save(f"{os.path.splitext(file)[0]}_ZoeDepth.png")
             update_pbar(f'{image_file}: Saved!\n', 100, filenum, len(file_path))
-        else:   
-            if output_file := filedialog.asksaveasfile(
-                defaultextension=".png",
-                initialfile=f"{os.path.splitext(os.path.basename(file))[0]}_TiledZoeDepth.png",
-                filetypes=[("PNG files", "*.png")],
-            ):
-                combined_image.save(output_file.name)
-                low_res_depth_map_image.save(output_file.name.replace("_TiledZoeDepth.png", "_ZoeDepth.png"))
-                update_pbar(f'{image_file}: Saved!\n', 100, filenum, len(file_path))
-                output_file.close()
+        else:
+            if cmore86_var.get():
+                if output_file := filedialog.asksaveasfile(
+                    defaultextension=".tif",
+                    initialfile=f"{os.path.splitext(os.path.basename(file))[0]}_TiledZoeDepth.tif",
+                    filetypes=[("TIFF files", "*.tif")],
+                ):
+                    combined_image.save(output_file.name, format='TIFF')
+                    low_res_depth_map_image.save(output_file.name.replace("_TiledZoeDepth.tif", "_ZoeDepth.tif"), format='TIFF')
+                    update_pbar(f'{image_file}: Saved!\n', 100, filenum, len(file_path))
+                    output_file.close()
+            else:
+                if output_file := filedialog.asksaveasfile(
+                    defaultextension=".png",
+                    initialfile=f"{os.path.splitext(os.path.basename(file))[0]}_TiledZoeDepth.png",
+                    filetypes=[("PNG files", "*.png")],
+                ):
+                    combined_image.save(output_file.name)
+                    low_res_depth_map_image.save(output_file.name.replace("_TiledZoeDepth.png", "_ZoeDepth.png"))
+                    update_pbar(f'{image_file}: Saved!\n', 100, filenum, len(file_path))
+                    output_file.close()
 
         # print('Original low resolution result')
         # plt.imshow(low_res_scaled_depth, 'magma')
