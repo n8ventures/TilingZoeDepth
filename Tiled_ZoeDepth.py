@@ -22,6 +22,7 @@ import requests
 import zipfile
 import io
 import math 
+from __version__ import appver
 
 contents_dir = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
 torch_cache = '.\\torch\\cache'
@@ -133,7 +134,7 @@ def main():
     center_window(root, geo_width, 950)
     root.iconbitmap(icon)
     make_non_resizable(root)
-    root.title('Tiled ZoeDepth')
+    root.title(f'Tiled ZoeDepth {appver}')
 
     canvas = tk.Canvas(root, bd=2, relief="ridge")
     canvas.pack(expand=True, fill="both")
@@ -246,9 +247,9 @@ def restore_main():
     canvas.dnd_bind('<<Drop>>', on_drop)
     canvas.drop_target_register(DND_FILES)
     drop_label.pack(expand=True, fill="both")
-    ZD_N_Check.pack(side=tk.LEFT)
-    ZD_K_Check.pack(side=tk.LEFT)
-    ZD_NK_Check.pack(side=tk.LEFT)
+    ZD_N_Check.pack()
+    ZD_K_Check.pack()
+    ZD_NK_Check.pack()
     Batch_mode_Check.pack(padx= 10, side=tk.RIGHT)
     cmore86_Check.pack(padx= 10, side=tk.RIGHT)
     root.update_idletasks()
@@ -422,42 +423,33 @@ def Tiled_ZoeDepth_process(file_path):
     # Unpack widgets
     ongoing_process()
     # NOTE Disable verbose on exe (verbose=verbose on torch does not work, so we're forcing to supress.)
-    # suppress_outputs()
-    # TODO: Optimize code. I think the 32bit switch cluttering around is a bit too much. Gotta set it to a more localized variable.
+    suppress_outputs()
+
     # Special thanks to cmore86 for the 32bit mode.
-    # TODO: inverse the depthmap for 32bit.
-    
+
     # Load model
     model_path = '.\\torch\\cache\\checkpoints'
-    ZDN_pt = 'https://github.com/isl-org/ZoeDepth/releases/download/v1.0/ZoeD_M12_N.pt'
-    ZDK_pt = 'https://github.com/isl-org/ZoeDepth/releases/download/v1.0/ZoeD_M12_K.pt'
-    ZDNK_pt = 'https://github.com/isl-org/ZoeDepth/releases/download/v1.0/ZoeD_M12_NK.pt'
     if ZD_N_var.get():
-        if os.path.exists(f'{model_path}\\ZoeD_M12_N.pt'):
-            update_pbar('Loading ZoeD_N Model... |', 1)
-        else:
+        if not os.path.exists(f'{model_path}\\ZoeD_M12_N.pt'):
+            ZDN_pt = 'https://github.com/isl-org/ZoeDepth/releases/download/v1.0/ZoeD_M12_N.pt'
             download_file(ZDN_pt,model_path)
-            update_pbar('Loading ZoeD_N Model... |', 1)
+        update_pbar('Loading ZoeD_N Model... |', 1)
         # Load ZoeD_N Model
         zoe = torch.hub.load(".\\ZoeDepth", "ZoeD_N", source="local", pretrained=True, trust_repo=True)
         model = 'Model: ZoeD_N'
     elif ZD_K_var.get():
-        if os.path.exists(f'{model_path}\\ZoeD_M12_K.pt'):
-            update_pbar('Loading ZoeD_K Model... |', 1)
-        else:
+        if not os.path.exists(f'{model_path}\\ZoeD_M12_K.pt'):
+            ZDK_pt = 'https://github.com/isl-org/ZoeDepth/releases/download/v1.0/ZoeD_M12_K.pt'
             download_file(ZDK_pt,model_path)
-            update_pbar('Loading ZoeD_K Model... |', 1)
-
+        update_pbar('Loading ZoeD_K Model... |', 1)
         # Load ZoeD_K Model    
         zoe = torch.hub.load(".\\ZoeDepth", "ZoeD_K", source="local", pretrained=True, trust_repo=True)
         model = 'Model: ZoeD_K'
     elif ZD_NK_var.get():
-        if os.path.exists(f'{model_path}\\ZoeD_M12_NK.pt'):
-            update_pbar('Loading ZoeD_NK Model... |', 1)
-        else:
+        if not os.path.exists(f'{model_path}\\ZoeD_M12_NK.pt'):
+            ZDNK_pt = 'https://github.com/isl-org/ZoeDepth/releases/download/v1.0/ZoeD_M12_NK.pt'
             download_file(ZDNK_pt,model_path)
-            update_pbar('Loading ZoeD_NK Model... |', 1)
-
+        update_pbar('Loading ZoeD_NK Model... |', 1)
         # Load ZoeD_NK Model
         zoe = torch.hub.load(".\\ZoeDepth", "ZoeD_NK", source="local", pretrained=True, trust_repo=True)
         model = 'Model: ZoeD_NK'
@@ -482,7 +474,7 @@ def Tiled_ZoeDepth_process(file_path):
         image_file = os.path.basename(file)
 
         img = Image.open(file)
-        
+
         if img.mode != 'RGB':
             img = img.convert("RGB")
 
@@ -492,25 +484,22 @@ def Tiled_ZoeDepth_process(file_path):
         update_pbar(f'{image_file}: Generating low-res depth map\n', 20, filenum, len(file_path))
 
         if cmore86_var.get():
-            normalized_depth = (low_res_depth - np.min(low_res_depth)) / (np.max(low_res_depth) - np.min(low_res_depth))
-            
-            low_res_depth_map_image = Image.fromarray(normalized_depth.astype(np.float32))
+            low_res_scaled_depth = (low_res_depth - np.min(low_res_depth)) / (np.max(low_res_depth) - np.min(low_res_depth))
+
+            low_res_depth_map_image = Image.fromarray(low_res_scaled_depth.astype(np.float32))
             low_res_depth_map_image.save('temp\\zoe_depth_map_32bit_low.tif', format='TIFF')
-            
-            model = model + ' | 32-bit Mode'
+
+            model = f'{model} | 32-bit Mode'
         else:
             low_res_scaled_depth = 2**16 - (low_res_depth - np.min(low_res_depth)) * 2**16 / (np.max(low_res_depth) - np.min(low_res_depth))
 
             low_res_depth_map_image = Image.fromarray((0.999 * low_res_scaled_depth).astype("uint16"))
             low_res_depth_map_image.save('temp\\zoe_depth_map_16bit_low.png')
-        
+
         # Display depth map on window
         fig = plt.Figure()
         ax1 = fig.add_subplot(111)
-        if cmore86_var.get():
-            ax1.imshow(normalized_depth, cmap='magma')
-        else:
-            ax1.imshow(low_res_scaled_depth, cmap='magma')
+        ax1.imshow(low_res_scaled_depth, cmap='magma')
         ax1.axis('off')
         ax1.set_title('Low Quality Depth Map')
 
@@ -530,11 +519,7 @@ def Tiled_ZoeDepth_process(file_path):
 
         im = np.asarray(img)
 
-        if cmore86_var.get():
-            tile_sizes = [[8,8], [12,12]]
-        else:
-            tile_sizes = [[4, 4], [8, 8]]
-
+        tile_sizes = [[8,8], [12,12]] if cmore86_var.get() else [[4, 4], [8, 8]]
         filters = []
 
         for tile_size in tile_sizes:
@@ -561,10 +546,22 @@ def Tiled_ZoeDepth_process(file_path):
 
                     x_value = 0.998*np.cos((abs(M/2-i)/M)*np.pi)**2
                     y_value = 0.998*np.cos((abs(N/2-j)/N)*np.pi)**2
+                    
+                    if j > N/2:
+                        filter_dict['right_filter'][i,j] = x_value
+                    else:
+                        filter_dict['right_filter'][i,j] = x_value * y_value
 
-                    filter_dict['right_filter'][i,j] = x_value if j > N/2 else x_value * y_value
-                    filter_dict['left_filter'][i,j] = x_value if j < N/2 else x_value * y_value
-                    filter_dict['top_filter'][i,j] = y_value if i < M/2 else x_value * y_value
+                    if j < N/2:
+                        filter_dict['left_filter'][i,j] = x_value
+                    else:
+                        filter_dict['left_filter'][i,j] = x_value * y_value
+
+                    if i < M/2:
+                        filter_dict['top_filter'][i,j] = y_value
+                    else:
+                        filter_dict['top_filter'][i,j] = x_value * y_value
+
                     if i > M/2:
                         filter_dict['bottom_filter'][i,j] = y_value
                     else:
@@ -677,10 +674,7 @@ def Tiled_ZoeDepth_process(file_path):
                     else:
                         selected_filter = filters[i]['filter']
 
-                    if cmore86_var.get():
-                        compiled_tiles[x:x+M, y:y+N] += selected_filter * (np.mean(normalized_depth[x:x+M, y:y+N]) + np.std(normalized_depth[x:x+M, y:y+N]) * ((scaled_depth - np.mean(scaled_depth)) /  np.std(scaled_depth)))
-                    else:
-                        compiled_tiles[x:x+M, y:y+N] += selected_filter * (np.mean(low_res_scaled_depth[x:x+M, y:y+N]) + np.std(low_res_scaled_depth[x:x+M, y:y+N]) * ((scaled_depth - np.mean(scaled_depth)) /  np.std(scaled_depth)))
+                    compiled_tiles[x:x+M, y:y+N] += selected_filter * (np.mean(low_res_scaled_depth[x:x+M, y:y+N]) + np.std(low_res_scaled_depth[x:x+M, y:y+N]) * ((scaled_depth - np.mean(scaled_depth)) /  np.std(scaled_depth)))
 
             compiled_tiles[compiled_tiles < 0] = 0
 
@@ -712,7 +706,7 @@ def Tiled_ZoeDepth_process(file_path):
             mask_image = Image.fromarray(tiles_difference.astype(np.float32))
             mask_image.save('temp\\mask_image.tif', format='TIFF')
 
-            combined_result = (tiles_difference * compiled_tiles_list[1] + (1 - tiles_difference) * ((compiled_tiles_list[0] + normalized_depth) / 2)) / 2
+            combined_result = (tiles_difference * compiled_tiles_list[1] + (1 - tiles_difference) * ((compiled_tiles_list[0] + low_res_scaled_depth) / 2)) / 2
             combined_result = combined_result / np.max(combined_result)
         else:
             mask_image = Image.fromarray((tiles_difference*2**16).astype("uint16"))
@@ -727,10 +721,7 @@ def Tiled_ZoeDepth_process(file_path):
         ax1 = fig.add_subplot(121)
         ax2 = fig.add_subplot(122)
 
-        if cmore86_var.get():
-            ax1.imshow(normalized_depth, cmap='magma')
-        else:
-            ax1.imshow(low_res_scaled_depth, cmap='magma')
+        ax1.imshow(low_res_scaled_depth, cmap='magma')
 
         ax1.axis('off')
         ax1.set_title('Low Quality Depth Map')
