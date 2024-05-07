@@ -166,3 +166,4 @@ im0 *.jpg
 torch/
 sign/
 sign.py
+.DS_Store
