@@ -213,10 +213,14 @@ def main():
     print("Current working directory:", os.getcwd())
     print("Executable path:", sys.executable)
     
-    if not os.path.exists('./ZoeDepth'):
-        print('ZoeDepth not downloaded!')
-        # Repo.clone_from('https://github.com/isl-org/ZoeDepth.git', 'ZoeDepth')
-        dlzip_unzip("https://github.com/isl-org/ZoeDepth/archive/refs/heads/main.zip")
+    zoedepth_path = './ZoeDepth'
+    if not os.path.exists(zoedepth_path) or not os.listdir(zoedepth_path):
+        if not os.path.exists(zoedepth_path):
+            print('ZoeDepth not downloaded!')
+        else: 
+            print('ZoeDepth directory is empty!')
+
+        dlzip_unzip("https://github.com/n8ventures/ZoeDepth/archive/refs/heads/main.zip")
         extracted_folder = "ZoeDepth-main"
         new_folder_name = "ZoeDepth"
         os.rename(extracted_folder, new_folder_name)
