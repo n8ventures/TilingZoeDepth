@@ -38,8 +38,6 @@ The progress bar is more of an indicator on how close the process is done. I pla
 Here are the checkpoints:
 
  **1%**:     Loading Model
-        
-- If model is not downloaded, progress bar switches to indeterminate while it's downloading in the background. (At the moment, I have no idea on how to impliment a progressbar download without modifying the torch module.)
 
  **10%**:    Checking if CUDA is available or not
 
@@ -69,7 +67,8 @@ Here are the checkpoints:
 
 ## Notes
 
-- I only tested this on Windows. Not sure if it will work on Linux or MacOS
+- I only tested this on Windows. Not sure if it will work on Linux. 
+- OSX (Metal/Apple Silicon) WIP.
 
 Images used:
 
