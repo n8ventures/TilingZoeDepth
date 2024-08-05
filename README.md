@@ -1,5 +1,12 @@
-# Tiled Zoe Depth GUI
-Basic GUI Implimentation based on [BillFSmith's](https://github.com/BillFSmith/) [TilingZoeDepth](https://github.com/BillFSmith/TilingZoeDepth).
+# TilingZoeDepth_GUI
+This project is a GUI version of [BillFSmith's TilingZoeDepth](https://github.com/BillFSmith/TilingZoeDepth).
+
+## License
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+### Licenses
+- Original project by Intel Labs: MIT License
+- GUI modifications by John Nathaniel Calvara: MIT License
 
 ## Prequisites
 Python 3.10
