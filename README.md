@@ -12,9 +12,9 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 Python 3.10
 
 ## Recommended
-### (Windows) CUDA-capable system (Nvidia GPU)
-### (Mac) Apple Silicon devices
+### Windows - CUDA-capable system (Nvidia GPU)
 - If you don't have an NVIDIA GPU, you'll be defaulted to use CPU for depth map generation (It's really slow).
+### MacOS - Apple Silicon (ARM) devices
 
 
 ## Setup
