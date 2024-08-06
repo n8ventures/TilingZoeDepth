@@ -167,3 +167,4 @@ torch_files/
 sign/
 sign.py
 .DS_Store
+*.dmg
