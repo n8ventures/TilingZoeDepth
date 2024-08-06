@@ -163,7 +163,7 @@ tiled_*.png
 zoe_depth_map_16bit_low.png
 test/
 im0 *.jpg
-torch/
+torch_files/
 sign/
 sign.py
 .DS_Store

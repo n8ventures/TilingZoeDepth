@@ -39,10 +39,16 @@ def is_running_from_bundle():
 
 if is_running_from_bundle():
     print("Running from a bundled application (.app)")
+    
+    splash_file = os.path.join(is_running_from_bundle(), './ZoeDepth2.png')
+    icon_file = os.path.join(is_running_from_bundle(), './ZoeDepth2.png')
 else:
     print("Running from source (.py)")
+    
+    splash_file = './assets/ZoeDepth2.png'
+    icon_file = './assets/ZoeDepth2.png'
 
-torch_cache = './torch/cache'
+torch_cache = './torch_files/cache'
 
 if not os.path.exists(torch_cache):
     os.makedirs(torch_cache, exist_ok=True)
@@ -76,11 +82,8 @@ splash_geo_x = 490
 splash_geo_y = 490
 center_window(splash_screen, splash_geo_x, splash_geo_y)
 
-icon = PhotoImage(file='.//assets//ZoeDepth2.png')
-splash_img = PhotoImage(file='.//assets//ZoeDepth2.png')
-if hasattr(sys, '_MEIPASS'):
-    splash_img =  PhotoImage(file=os.path.join(is_running_from_bundle(), './/assets//ZoeDepth2.png'))
-    icon = PhotoImage(file=os.path.join(is_running_from_bundle(), './/assets//ZoeDepth2.png'))
+icon = PhotoImage(file=icon_file)
+splash_img = PhotoImage(file=splash_file)
 
 splash_label = tk.Label(splash_screen, image=splash_img)
 splash_label.pack()
@@ -440,16 +443,14 @@ Raises:
     root.update_idletasks()
 
 def Tiled_ZoeDepth_process(file_path):
-    from ZoeDepth.zoedepth.utils.misc import get_image_from_url, colorize
     # Unpack widgets
     ongoing_process()
-    # NOTE Disable verbose on exe (verbose=verbose on torch does not work, so we're forcing to supress.)
     # suppress_outputs()
 
     # Special thanks to cmore86 for the 32bit mode.
 
     # Load model
-    model_path = './torch/cache/checkpoints'
+    model_path = './torch_files/cache/checkpoints'
     if ZD_N_var.get():
         if not os.path.exists(f'{model_path}/ZoeD_M12_N.pt'):
             ZDN_pt = 'https://github.com/isl-org/ZoeDepth/releases/download/v1.0/ZoeD_M12_N.pt'
