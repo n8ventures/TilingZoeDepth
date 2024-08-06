@@ -12,12 +12,14 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 Python 3.10
 
 ## Recommended
-### CUDA-capable system (Nvidia GPU)
+### (Windows) CUDA-capable system (Nvidia GPU)
+### (Mac) Apple Silicon devices
 - If you don't have an NVIDIA GPU, you'll be defaulted to use CPU for depth map generation (It's really slow).
 
+
 ## Setup
-1. run `pip3 -r requirements.txt` first to download the packages.
-2. On first start, run `python Tiled_ZoeDepth.py` to download the ZoeDepth repo.
+1. run `pip3 -r requirements.txt` (or `pip3 -r requirements_OSX-arm64.txt` for Mac) first to download the packages.
+2. On first start, run `python Tiled_ZoeDepth.py` / `python Tiled_ZoeDepth-OSX.py` to download the ZoeDepth repo.
 
 ## How to use
 ### 1. First, before we import our images. Select your preferred ZoeDepth model
@@ -74,8 +76,7 @@ Here are the checkpoints:
 
 ## Notes
 
-- I only tested this on Windows. Not sure if it will work on Linux. 
-- OSX (Metal/Apple Silicon) WIP.
+- I only tested this on Windows and Mac. Not sure if it will work on Linux. 
 
 Images used:
 
