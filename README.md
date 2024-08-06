@@ -20,7 +20,7 @@ Python 3.10
 
 ## Downloadable Builds
 - [Windows](https://github.com/n8ventures/TilingZoeDepth_GUI/releases/tag/3.1.0)
-- [MacOS (Apple Silicon/ARM)](https://github.com/n8ventures/TilingZoeDepth_GUI/releases/tag/3.1.1)
+- [MacOS (Apple Silicon/ARM)](https://github.com/n8ventures/TilingZoeDepth_GUI/releases/tag/3.1.0-MacOS)
 
 ## Setup
 1. run `pip3 -r requirements.txt` (`pip3 -r requirements_OSX-arm64.txt` for Mac) first to download the packages.
