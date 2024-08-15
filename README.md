@@ -23,7 +23,7 @@ Python 3.10
 - [MacOS (Apple Silicon/ARM)](https://github.com/n8ventures/TilingZoeDepth_GUI/releases/tag/3.1.0-MacOS)
 
 ## Setup
-1. run `pip3 -r requirements.txt` (`pip3 -r requirements_OSX-arm64.txt` for Mac) first to download the packages.
+1. run `pip3 install -r requirements.txt` (`pip3 install -r requirements_OSX-arm64.txt` for Mac) first to download the packages.
 2. On first start, run `python Tiled_ZoeDepth.py` / `python Tiled_ZoeDepth-OSX.py` to download the ZoeDepth repo.
 
 ## How to use
